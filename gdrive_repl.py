@@ -1,6 +1,10 @@
 import shlex
 import click
-from click.core import Context
+from click.core import Context, Parameter
+from click.formatting import HelpFormatter
+from click.exceptions import UsageError
+import copy
+from typing import List
 
 def start_repl() -> None:
     while True:
@@ -11,20 +15,33 @@ def start_repl() -> None:
         except SystemExit:
             pass
 
-class MyGroup(click.Group):
-    def invoke(self, ctx):
-        ctx.obj = tuple(ctx.args)
-        super(MyGroup, self).invoke(ctx)
+def _parentless(context: Context) -> Context:
+    ctx = copy.deepcopy(context)
+    ctx.parent = None
+    return ctx
 
-@click.group(cls=MyGroup)
-@click.pass_context
-def repl(group_ctx: Context):
+class ReplCommand(click.Command):
+    def format_usage(self, ctx: Context, formatter: HelpFormatter) -> None:
+        return super().format_usage(_parentless(ctx), formatter)
+
+    def get_params(self, ctx: Context) -> List[Parameter]:
+        return super().get_params(_parentless(ctx))
+
+class ReplGroup(click.Group):
+    def invoke(self, ctx: Context):
+        ctx.obj = tuple(ctx.args)
+        try:    
+            super(ReplGroup, self).invoke(ctx)
+        except UsageError as e:
+            e.ctx = _parentless(e.ctx)
+            e.show()
+
+@click.group(cls=ReplGroup)
+def repl():
     pass
 
-@repl.command()
+@repl.command(cls=ReplCommand)
 @click.argument('dir', required=True)
 def cd(dir: str) -> None:
     click.echo(dir)
 
-if __name__ == "__main__":
-    start_repl()
