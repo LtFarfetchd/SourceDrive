@@ -1,10 +1,8 @@
 import click
 from pathlib import Path
-
+from gdrive_repl import start_repl
 from click.core import Context
-
-def _get_path(dir: str = "") -> Path:
-    return Path(dir) if dir else Path.cwd()
+from util import get_path
 
 @click.group()
 def sdr() -> None:
@@ -20,7 +18,7 @@ def pull(dir: str, should_search: bool, is_forced: bool, is_interactive: bool) -
     Safe-syncs the specified directory if it is marked as a SourceDrive repository.
     If no directory is provided, the current directory is used.
     """
-    target_dir: Path = _get_path(dir)
+    target_dir: Path = get_path(dir)
     print(target_dir)
 
 @sdr.command()
@@ -33,12 +31,12 @@ def init(context: Context, dir: str, should_pull: bool) -> None:
     If no directory is provided, the working directory is used. 
     Opens a REPL for navigation through your Google Drive file-system to select a folder for SourceDrive to sync from
     """
-    target_dir: Path = _get_path(dir)
+    target_dir: Path = get_path(dir)
     if (target_dir / '.sdr').exists():
         click.echo('The targeted directory is already a SourceDrive repository')
         return
     
-    
+    start_repl()
 
     if should_pull:
         context.invoke(pull, dir=dir, should_search=False, is_forced=False, is_interactive=False)
