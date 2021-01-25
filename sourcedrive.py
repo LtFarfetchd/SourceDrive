@@ -1,6 +1,8 @@
+from _typeshed import OpenTextMode
+import pathlib
 import click
 from pathlib import Path
-from gdrive_repl import start_repl
+from gdrive_repl import repl, start_repl
 from click.core import Context
 from util import get_path
 
@@ -32,11 +34,17 @@ def init(context: Context, dir: str, should_pull: bool) -> None:
     Opens a REPL for navigation through your Google Drive file-system to select a folder for SourceDrive to sync from
     """
     target_dir: Path = get_path(dir)
-    if (target_dir / '.sdr').exists():
+    sdr_dir_path = target_dir / '.sdr/'
+
+    try:
+        sdr_dir_path.mkdir()
+    except FileExistsError:
         click.echo('The targeted directory is already a SourceDrive repository')
         return
-    
-    start_repl()
+
+    gdrive_fs = start_repl(sdr_dir_path)
+    with (sdr_dir_path / 'gdrive.fs').open(mode='w') as gdrive_fs_file:
+        gdrive_fs_file.write(gdrive_fs)
 
     if should_pull:
         context.invoke(pull, dir=dir, should_search=False, is_forced=False, is_interactive=False)

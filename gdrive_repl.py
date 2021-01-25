@@ -1,3 +1,6 @@
+from io import TextIOWrapper
+from logging import StringTemplateStyle
+from pathlib import Path
 import shlex
 import click
 from click.core import Context, Parameter
@@ -5,8 +8,12 @@ from click.formatting import HelpFormatter
 from click.exceptions import UsageError
 import copy
 from typing import List
+from fs import tempfs
 
-def start_repl() -> None:
+def start_repl(sdr_dir_path: Path) -> str:
+    temp_dir_path = (sdr_dir_path / 'temp/')
+    temp_dir_path.mkdir()
+    gdrive_fs = tempfs.TempFS(temp_dir=str(temp_dir_path.resolve()))
     while True:
         user_input = input('> ')
         user_args = shlex.split(user_input)
