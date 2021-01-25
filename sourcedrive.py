@@ -1,8 +1,6 @@
-from _typeshed import OpenTextMode
-import pathlib
 import click
 from pathlib import Path
-from gdrive_repl import repl, start_repl
+from gdrive_repl import start_repl
 from click.core import Context
 from util import get_path
 

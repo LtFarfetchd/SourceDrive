@@ -1,5 +1,3 @@
-from io import TextIOWrapper
-from logging import StringTemplateStyle
 from pathlib import Path
 import shlex
 import click
@@ -9,8 +7,25 @@ from click.exceptions import UsageError
 import copy
 from typing import List
 from fs import tempfs
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
+from pydrive.files import GoogleDriveFile
+
+
+def _get_drive_instance() -> GoogleDrive:
+    gauth = GoogleAuth()
+    gauth.LocalWebserverAuth()
+    return GoogleDrive(gauth)
+
+
+def _get_files_in_drive_dir(drive: GoogleDrive, dir_drive_id: str) -> List[GoogleDriveFile]:
+    query = f"'{dir_drive_id}' in parents and trashed=false"
+    return drive.ListFile({'q': query}).GetList()
+
 
 def start_repl(sdr_dir_path: Path) -> str:
+    drive = _get_drive_instance()
+    print(_get_files_in_drive_dir(drive, 'root'))
     temp_dir_path = (sdr_dir_path / 'temp/')
     temp_dir_path.mkdir()
     gdrive_fs = tempfs.TempFS(temp_dir=str(temp_dir_path.resolve()))
@@ -21,6 +36,7 @@ def start_repl(sdr_dir_path: Path) -> str:
             repl(user_args)
         except SystemExit:
             pass
+
 
 def _parentless(context: Context) -> Context:
     ctx = copy.deepcopy(context)
@@ -34,6 +50,7 @@ class ReplCommand(click.Command):
     def get_params(self, ctx: Context) -> List[Parameter]:
         return super().get_params(_parentless(ctx))
 
+
 class ReplGroup(click.Group):
     def invoke(self, ctx: Context):
         ctx.obj = tuple(ctx.args)
@@ -43,9 +60,11 @@ class ReplGroup(click.Group):
             e.ctx = _parentless(e.ctx)
             e.show()
 
+
 @click.group(cls=ReplGroup)
 def repl():
     pass
+
 
 @repl.command(cls=ReplCommand)
 @click.argument('dir', required=True)
