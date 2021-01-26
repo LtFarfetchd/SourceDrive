@@ -6,35 +6,24 @@ from click.formatting import HelpFormatter
 from click.exceptions import UsageError
 import copy
 from typing import List
-from fs import tempfs
 from fs.subfs import SubFS
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
-from pydrive.files import GoogleDriveFile
 import os
-
-
-def _get_drive_instance() -> GoogleDrive:
-    gauth = GoogleAuth()
-    gauth.LocalWebserverAuth()
-    return GoogleDrive(gauth)
-
-
-def _get_files_in_drive_dir(drive: GoogleDrive, dir_drive_id: str) -> List[GoogleDriveFile]:
-    query = f"'{dir_drive_id}' in parents and trashed=false"
-    return drive.ListFile({'q': query}).GetList()
+from gdrive_utils import get_drive_instance, get_files_in_drive_dir, add_drive_files_to_sub_fs
+from utils import DriveFS
 
 def start_repl(sdr_dir_path: Path) -> str:
-    drive = _get_drive_instance()
+    drive = get_drive_instance()
     temp_dir_path = (sdr_dir_path / 'temp/')
     temp_dir_path.mkdir()
-    gdrive_fs = tempfs.TempFS(temp_dir=str(temp_dir_path.resolve()))
+    gdrive_fs = DriveFS(temp_dir=str(temp_dir_path.resolve()))
     current_dir: SubFS = gdrive_fs.makedir('root')
 
     while True:
         user_input = input('> ')
         user_args = [current_dir].extend(shlex.split(user_input))
-        files = _get_files_in_drive_dir(drive, ((str(current_dir._sub_dir)).strip(os.sep)))
+        files = get_files_in_drive_dir(drive, ((str(current_dir._sub_dir)).strip(os.sep)))
+        add_drive_files_to_sub_fs(current_dir, files)
+        print(gdrive_fs.tree())
         try:
             repl(user_args)
         except SystemExit:

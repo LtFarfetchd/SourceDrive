@@ -2,7 +2,7 @@ import click
 from pathlib import Path
 from gdrive_repl import start_repl
 from click.core import Context
-from util import get_path
+from utils import get_path
 
 @click.group()
 def sdr() -> None:
