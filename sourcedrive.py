@@ -5,9 +5,11 @@ from click.core import Context
 from utils import get_path
 import json
 
+
 @click.group()
 def sdr() -> None:
     """Top-level SourceDrive command"""
+
 
 @sdr.command()
 @click.argument('dir', required=False)
@@ -21,6 +23,7 @@ def pull(dir: str, should_search: bool, is_forced: bool, is_interactive: bool) -
     """
     target_dir: Path = get_path(dir)
     print(target_dir)
+
 
 @sdr.command()
 @click.argument('dir', required=False)
@@ -40,6 +43,8 @@ def init(context: Context, dir: str, should_pull: bool) -> None:
     except FileExistsError:
         click.echo('The targeted directory is already a SourceDrive repository')
         return
+    
+    (sdr_dir_path / 'exports.config').mkdir()
 
     gdrive_data = run_repl(sdr_dir_path)
     if gdrive_data:
@@ -50,3 +55,10 @@ def init(context: Context, dir: str, should_pull: bool) -> None:
         context.invoke(pull, dir=dir, should_search=False, is_forced=False, is_interactive=False)
     
 
+@sdr.command()
+@click.argument('dir', required=False)
+def configure(dir: str) -> None:
+    if not (get_path(dir) / '.sdr').exists():
+        click.echo('Cannot modify configurations of an uninitialised SourceDrive repository')
+        click.echo('Run `sdr init --help` for help with initialisation')
+    # TODO: enable switching of configurations (export types)
