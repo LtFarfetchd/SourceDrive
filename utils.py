@@ -7,10 +7,7 @@ def get_path(dir: str = "") -> Path:
 
 
 def get_sub_dir_path(dir: SubFS[FS]) -> str:
-    path = ''
     try:
-        path += dir._wrap_fs._sub_dir
+        return get_sub_dir_path(dir._wrap_fs) + dir._sub_dir
     except AttributeError:
-        pass
-    path += dir._sub_dir
-    return path
+        return ''
