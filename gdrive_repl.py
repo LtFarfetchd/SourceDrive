@@ -7,6 +7,7 @@ from click.core import Context
 from click.formatting import HelpFormatter
 from click.exceptions import UsageError
 import copy
+import fs.tree
 from fs.base import FS
 from fs.tempfs import TempFS
 from fs.subfs import SubFS
@@ -92,12 +93,15 @@ def repl():
 
 @repl.command(cls=ReplCommand)
 @click.argument('dir', required=False)
-def ls(dir: str) -> None:
+@click.option('-r', '--recursive', 'is_recursive', is_flag=True)
+def ls(dir: str, is_recursive: bool) -> None:
     global current_dir
+    target_dir = current_dir
     if dir:
-        click.echo(_dive(current_dir, dir).tree())
-    else:
-        click.echo(current_dir.tree())
+        target_dir = _dive(current_dir, dir)
+
+    fs.tree.render(target_dir, max_levels=(None if is_recursive else 0))
+    
 
 
 @repl.command(cls=ReplCommand)
