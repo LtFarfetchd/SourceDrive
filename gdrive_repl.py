@@ -13,7 +13,26 @@ from fs.tempfs import TempFS
 from fs.subfs import SubFS
 from pydrive.drive import GoogleDrive
 from gdrive_utils import get_drive_instance, get_files_in_drive_dir, add_drive_files_to_sub_fs
-from utils import get_path, get_sub_dir_path
+from utils import get_sub_dir_path
+
+
+class ReplExitSignal(Exception):
+    pass
+
+class ReplCommand(click.Command):
+    def format_usage(self, ctx: Context, formatter: HelpFormatter) -> None:
+        return super().format_usage(_parentless(ctx), formatter)
+
+
+class ReplGroup(click.Group):
+    def invoke(self, ctx: Context):
+        ctx.obj = tuple(ctx.args)
+        try:    
+            super(ReplGroup, self).invoke(ctx)
+        except UsageError as e:
+            e.ctx = _parentless(e.ctx)
+            e.show()
+
 
 drive: GoogleDrive
 current_dir: SubFS[FS]
@@ -33,6 +52,7 @@ def _parentless(context: Context) -> Context:
 
 
 def _dive(start_dir: SubFS[FS], target_dir_path: str) -> SubFS[FS]:
+    # TODO: handle back-reference (..) instances within path
     current_dir = start_dir
     if current_dir.exists(target_dir_path):
         current_dir = current_dir.opendir(target_dir_path)
@@ -69,21 +89,10 @@ def start_repl(sdr_dir_path: Path) -> str:
             repl(user_args)
         except SystemExit:
             pass
+        except ReplExitSignal:
+            break
 
-
-class ReplCommand(click.Command):
-    def format_usage(self, ctx: Context, formatter: HelpFormatter) -> None:
-        return super().format_usage(_parentless(ctx), formatter)
-
-
-class ReplGroup(click.Group):
-    def invoke(self, ctx: Context):
-        ctx.obj = tuple(ctx.args)
-        try:    
-            super(ReplGroup, self).invoke(ctx)
-        except UsageError as e:
-            e.ctx = _parentless(e.ctx)
-            e.show()
+    return ''
 
 
 @click.group(cls=ReplGroup)
@@ -103,13 +112,14 @@ def ls(dir: str, is_recursive: bool) -> None:
     fs.tree.render(target_dir, max_levels=(None if is_recursive else 0))
     
 
-
 @repl.command(cls=ReplCommand)
 @click.argument('dir', required=True)
 def cd(dir: str) -> None:
     global current_dir
     current_dir = _dive(current_dir, dir)
-    
 
-if __name__ == "__main__":
-    start_repl(get_path() / '.sdr/')
+
+@repl.command(cls=ReplCommand)
+def exit() -> None:
+    raise ReplExitSignal()
+    
