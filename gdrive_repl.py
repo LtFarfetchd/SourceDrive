@@ -31,6 +31,25 @@ def _parentless(context: Context) -> Context:
     return ctx
 
 
+def _dive(start_dir: SubFS[FS], target_dir_path: str) -> SubFS[FS]:
+    current_dir = start_dir
+    if current_dir.exists(target_dir_path):
+        current_dir = current_dir.opendir(target_dir_path)
+        if current_dir.isempty('/'):
+            _generate_files(current_dir)
+        return current_dir
+
+    dir_path = target_dir_path.split(os.sep)
+    while dir_path:
+        if not current_dir.exists(dir_path[0]):
+            _generate_files(current_dir)
+        current_dir = current_dir.opendir(dir_path[0])
+        del dir_path[0]
+    _generate_files(current_dir)
+
+    return current_dir
+
+
 def start_repl(sdr_dir_path: Path) -> str:
     global drive, current_dir, drive_ids
     drive = get_drive_instance()
@@ -75,27 +94,18 @@ def repl():
 @click.argument('dir', required=False)
 def ls(dir: str) -> None:
     global current_dir
-    click.echo(current_dir.tree())
+    if dir:
+        click.echo(_dive(current_dir, dir).tree())
+    else:
+        click.echo(current_dir.tree())
 
 
 @repl.command(cls=ReplCommand)
 @click.argument('dir', required=True)
 def cd(dir: str) -> None:
     global current_dir
-
-    if current_dir.exists(dir):
-        current_dir = current_dir.opendir(dir)
-        if current_dir.isempty('/'):
-            _generate_files(current_dir)
-        return
-
-    dir_path = dir.split(os.sep)
-    while dir_path:
-        if not current_dir.exists(dir_path[0]):
-            _generate_files(current_dir)
-        current_dir = current_dir.opendir(dir_path[0])
-        del dir_path[0]
-    _generate_files(current_dir)
+    current_dir = _dive(current_dir, dir)
+    
 
 if __name__ == "__main__":
     start_repl(get_path() / '.sdr/')
