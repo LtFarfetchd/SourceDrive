@@ -88,7 +88,7 @@ def _enumerate(start_dir: SubFS[FS]) -> None:
     pass
 
 
-def start_repl(sdr_dir_path: Path) -> Dict[str, str]:
+def run_repl(sdr_dir_path: Path) -> Dict[str, str]:
     global drive, current_dir, previous_dir, drive_files
     drive = get_drive_instance()
     temp_dir_path = (sdr_dir_path / 'temp/')
@@ -117,11 +117,16 @@ def start_repl(sdr_dir_path: Path) -> Dict[str, str]:
             previous_dir = before_dir
 
     chosen_dir = get_sub_dir_path(current_dir)
-    return { # TODO: cull data we don't need
+    data = { # TODO: cull data we don't need
         (key[len(chosen_dir):]) : value.metadata
         for (key, value) in drive_files.items() 
         if chosen_dir in key and chosen_dir != key
     }
+
+    gdrive_fs.close()
+    temp_dir_path.rmdir()
+
+    return data
 
 
 @click.group(cls=ReplGroup)

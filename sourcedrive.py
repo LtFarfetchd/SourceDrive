@@ -1,6 +1,6 @@
 import click
 from pathlib import Path
-from gdrive_repl import start_repl
+from gdrive_repl import run_repl
 from click.core import Context
 from utils import get_path
 import json
@@ -41,9 +41,10 @@ def init(context: Context, dir: str, should_pull: bool) -> None:
         click.echo('The targeted directory is already a SourceDrive repository')
         return
 
-    gdrive_fs = start_repl(sdr_dir_path)
-    with (sdr_dir_path / 'gdrive.json').open(mode='w') as gdrive_fs_file:
-        gdrive_fs_file.write(json.dumps(gdrive_fs))
+    gdrive_data = run_repl(sdr_dir_path)
+    if gdrive_data:
+        with (sdr_dir_path / 'gdrive.json').open(mode='w') as gdrive_fs_file:
+            gdrive_fs_file.write(json.dumps(gdrive_data))
 
     if should_pull:
         context.invoke(pull, dir=dir, should_search=False, is_forced=False, is_interactive=False)
