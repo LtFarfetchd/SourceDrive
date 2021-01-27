@@ -35,6 +35,7 @@ class ReplGroup(click.Group):
 
 
 drive: GoogleDrive
+previous_dir: SubFS[FS]
 current_dir: SubFS[FS]
 drive_ids: Dict[str, str] = {}
 
@@ -53,6 +54,11 @@ def _parentless(context: Context) -> Context:
 
 def _dive(start_dir: SubFS[FS], target_dir_path: str) -> SubFS[FS]:
     # TODO: handle back-reference (..) instances within path
+    global previous_dir
+
+    if target_dir_path == '-': # handle back-navigation case
+        return previous_dir
+
     current_dir = start_dir
     if current_dir.exists(target_dir_path):
         current_dir = current_dir.opendir(target_dir_path)
@@ -72,7 +78,7 @@ def _dive(start_dir: SubFS[FS], target_dir_path: str) -> SubFS[FS]:
 
 
 def start_repl(sdr_dir_path: Path) -> str:
-    global drive, current_dir, drive_ids
+    global drive, current_dir, previous_dir, drive_ids
     drive = get_drive_instance()
     temp_dir_path = (sdr_dir_path / 'temp/')
     temp_dir_path.mkdir()
@@ -80,10 +86,12 @@ def start_repl(sdr_dir_path: Path) -> str:
     current_dir = gdrive_fs.makedir('~')
     drive_ids[current_dir._sub_dir] = 'root'
     _generate_files(current_dir)
+    previous_dir = current_dir
 
     while True:
         user_input = input('> ')
         user_args = shlex.split(user_input)
+        before_dir = current_dir
 
         try:
             repl(user_args)
@@ -91,6 +99,9 @@ def start_repl(sdr_dir_path: Path) -> str:
             pass
         except ReplExitSignal:
             break
+        
+        if before_dir != current_dir:
+            previous_dir = before_dir
 
     return ''
 
