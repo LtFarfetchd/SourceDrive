@@ -3,6 +3,7 @@ from pathlib import Path
 from gdrive_repl import start_repl
 from click.core import Context
 from utils import get_path
+import json
 
 @click.group()
 def sdr() -> None:
@@ -41,8 +42,8 @@ def init(context: Context, dir: str, should_pull: bool) -> None:
         return
 
     gdrive_fs = start_repl(sdr_dir_path)
-    with (sdr_dir_path / 'gdrive.fs').open(mode='w') as gdrive_fs_file:
-        gdrive_fs_file.write(gdrive_fs)
+    with (sdr_dir_path / 'gdrive.json').open(mode='w') as gdrive_fs_file:
+        gdrive_fs_file.write(json.dumps(gdrive_fs))
 
     if should_pull:
         context.invoke(pull, dir=dir, should_search=False, is_forced=False, is_interactive=False)

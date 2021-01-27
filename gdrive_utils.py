@@ -27,7 +27,7 @@ def _build_virtual_file(parent_dir: SubFS[TempFS], drive_file: GoogleDriveFile) 
         parent_dir.makedir(file_name)
     else:
         parent_dir.touch(file_name)
-    return {f'{get_sub_dir_path(parent_dir)}/{file_name}': file_id}
+    return {f'{get_sub_dir_path(parent_dir)}/{file_name}': drive_file}
 
 def add_drive_files_to_sub_fs(parent_dir: SubFS[TempFS], files: List[GoogleDriveFile]) -> Dict[str, str]:
     google_ids = {}

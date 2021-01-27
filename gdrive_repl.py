@@ -12,12 +12,18 @@ from fs.base import FS
 from fs.tempfs import TempFS
 from fs.subfs import SubFS
 from pydrive.drive import GoogleDrive
+from pydrive.files import GoogleDriveFile
 from gdrive_utils import get_drive_instance, get_files_in_drive_dir, add_drive_files_to_sub_fs
 from utils import get_sub_dir_path
 
 
 class ReplExitSignal(Exception):
     pass
+
+
+class ReplFinishSignal(Exception):
+    pass
+
 
 class ReplCommand(click.Command):
     def format_usage(self, ctx: Context, formatter: HelpFormatter) -> None:
@@ -37,13 +43,13 @@ class ReplGroup(click.Group):
 drive: GoogleDrive
 previous_dir: SubFS[FS]
 current_dir: SubFS[FS]
-drive_ids: Dict[str, str] = {}
+drive_files: Dict[str, GoogleDriveFile] = {}
 
 
 def _generate_files(parent_dir: SubFS[FS]) -> None:
-    global drive, drive_ids
-    files = get_files_in_drive_dir(drive, drive_ids[get_sub_dir_path(parent_dir)])
-    drive_ids.update(add_drive_files_to_sub_fs(parent_dir, files))
+    global drive, drive_files
+    files = get_files_in_drive_dir(drive, drive_files[get_sub_dir_path(parent_dir)]['id'])
+    drive_files.update(add_drive_files_to_sub_fs(parent_dir, files))
 
 
 def _parentless(context: Context) -> Context:
@@ -77,14 +83,19 @@ def _dive(start_dir: SubFS[FS], target_dir_path: str) -> SubFS[FS]:
     return current_dir
 
 
-def start_repl(sdr_dir_path: Path) -> str:
-    global drive, current_dir, previous_dir, drive_ids
+def _enumerate(start_dir: SubFS[FS]) -> None:
+    # TODO: recursively enumerate all files within start_dir
+    pass
+
+
+def start_repl(sdr_dir_path: Path) -> Dict[str, str]:
+    global drive, current_dir, previous_dir, drive_files
     drive = get_drive_instance()
     temp_dir_path = (sdr_dir_path / 'temp/')
     temp_dir_path.mkdir()
     gdrive_fs = TempFS(temp_dir=str(temp_dir_path.resolve()))
     current_dir = gdrive_fs.makedir('~')
-    drive_ids[current_dir._sub_dir] = 'root'
+    drive_files[current_dir._sub_dir] = GoogleDriveFile(metadata={'id': 'root'})
     _generate_files(current_dir)
     previous_dir = current_dir
 
@@ -98,12 +109,19 @@ def start_repl(sdr_dir_path: Path) -> str:
         except SystemExit:
             pass
         except ReplExitSignal:
+            return ''
+        except ReplFinishSignal:
             break
         
         if before_dir != current_dir:
             previous_dir = before_dir
 
-    return ''
+    chosen_dir = get_sub_dir_path(current_dir)
+    return { # TODO: cull data we don't need
+        (key[len(chosen_dir):]) : value.metadata
+        for (key, value) in drive_files.items() 
+        if chosen_dir in key and chosen_dir != key
+    }
 
 
 @click.group(cls=ReplGroup)
@@ -133,4 +151,14 @@ def cd(dir: str) -> None:
 @repl.command(cls=ReplCommand)
 def exit() -> None:
     raise ReplExitSignal()
+
+
+@repl.command(cls=ReplCommand)
+@click.argument('dir', required=False)
+def select(dir: str) -> None:
+    global current_dir
+    if dir:
+        current_dir = _dive(current_dir, dir)
+    _enumerate(current_dir)
+    raise ReplFinishSignal()
     

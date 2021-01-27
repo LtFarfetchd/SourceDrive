@@ -1,5 +1,6 @@
 FOLDER_MIMETYPE = 'application/vnd.google-apps.folder'
 
+# https://developers.google.com/drive/api/v3/ref-export-formats
 DRIVE_MIMETYPE_EXTENSIONS = {
     "application/vnd.google-apps.document": "doc",
     "application/vnd.google-apps.drawing": "drawing",
