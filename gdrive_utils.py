@@ -1,11 +1,11 @@
-from fs.base import FS
 from fs.subfs import SubFS
-from typing import List
+from typing import List, Dict
+from pathlib import Path
+from fs.tempfs import TempFS
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
 from constants import FOLDER_MIMETYPE
-from dataclasses import dataclass
 
 def get_drive_instance() -> GoogleDrive:
     gauth = GoogleAuth()
@@ -18,17 +18,19 @@ def get_files_in_drive_dir(drive: GoogleDrive, dir_drive_id: str) -> List[Google
     return drive.ListFile({'q': query}).GetList()
 
 
-def _build_virtual_file(parent_dir: FS, drive_file: GoogleDriveFile) -> None:
+def _build_virtual_file(parent_dir: SubFS[TempFS], drive_file: GoogleDriveFile) -> Dict[str, str]:
     df_meta = drive_file.metadata
     file_name = df_meta['title']
+    file_id = df_meta['id']
     if df_meta['mimeType'] == FOLDER_MIMETYPE:
         parent_dir.makedir(file_name)
     else:
         parent_dir.touch(file_name)
-    parent_dir.setinfo(file_name, {'google': {'id': df_meta['id']}})
+    return {f'{parent_dir._sub_dir}/{file_name}': file_id}
 
-
-def add_drive_files_to_sub_fs(parent_dir: FS, files: List[GoogleDriveFile]) -> None:
+def add_drive_files_to_sub_fs(parent_dir: SubFS[TempFS], files: List[GoogleDriveFile]) -> Dict[str, str]:
+    google_ids = {}
     for file in files:
-        _build_virtual_file(parent_dir, file)
+        google_ids.update(_build_virtual_file(parent_dir, file))
+    return google_ids
 
