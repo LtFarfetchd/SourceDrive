@@ -6,6 +6,8 @@ setup(
     py_modules=['sourcedrive'],
     install_requires=[
         'Click',
+        'FS',
+        'PyDrive'
     ],
     entry_points='''
         [console_scripts]
