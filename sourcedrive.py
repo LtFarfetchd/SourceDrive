@@ -44,7 +44,8 @@ def init(context: Context, dir: str, should_pull: bool) -> None:
         click.echo('The targeted directory is already a SourceDrive repository')
         return
     
-    (sdr_dir_path / 'exports.config').mkdir()
+    (sdr_dir_path / 'exports.config').touch()
+
 
     gdrive_data = run_repl(sdr_dir_path)
     if gdrive_data:

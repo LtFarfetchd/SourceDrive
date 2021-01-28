@@ -14,7 +14,7 @@ from fs.subfs import SubFS
 from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
 from gdrive_utils import get_drive_instance, get_files_in_drive_dir, add_drive_files_to_sub_fs
-from utils import get_sub_dir_path
+from utils import get_sub_dir_path, no_stdout
 
 
 class ReplExitSignal(Exception):
@@ -92,7 +92,8 @@ def _enumerate(start_dir: SubFS[FS]) -> None:
 
 def run_repl(sdr_dir_path: Path) -> Dict[str, str]:
     global drive, current_dir, previous_dir, drive_files
-    drive = get_drive_instance()
+    with no_stdout():
+        drive = get_drive_instance()
     temp_dir_path = (sdr_dir_path / 'temp/')
     temp_dir_path.mkdir()
     gdrive_fs = TempFS(temp_dir=str(temp_dir_path.resolve()))
