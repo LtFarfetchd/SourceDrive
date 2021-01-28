@@ -1,4 +1,5 @@
-from utils import get_sub_dir_path
+import os
+from utils import get_sub_dir_path, sanitise_fname
 from fs.subfs import SubFS
 from typing import List, Dict
 from pathlib import Path
@@ -21,8 +22,8 @@ def get_files_in_drive_dir(drive: GoogleDrive, dir_drive_id: str) -> List[Google
 
 def _build_virtual_file(parent_dir: SubFS[TempFS], drive_file: GoogleDriveFile) -> Dict[str, str]:
     df_meta = drive_file.metadata
-    file_name = df_meta['title']
-    file_id = df_meta['id']
+    file_name: str = df_meta['title']
+    file_name = sanitise_fname(file_name)
     if df_meta['mimeType'] == FOLDER_MIMETYPE:
         parent_dir.makedir(file_name)
     else:

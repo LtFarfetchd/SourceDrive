@@ -84,8 +84,10 @@ def _dive(start_dir: SubFS[FS], target_dir_path: str) -> SubFS[FS]:
 
 
 def _enumerate(start_dir: SubFS[FS]) -> None:
-    # TODO: recursively enumerate all files within start_dir
-    pass
+    if start_dir.isempty('/'):
+        _generate_files(start_dir)
+    for sub_dir_info in start_dir.filterdir('/', exclude_files=['*']):
+        _enumerate(start_dir.opendir(sub_dir_info.name))
 
 
 def run_repl(sdr_dir_path: Path) -> Dict[str, str]:
