@@ -9,6 +9,10 @@ def get_path(dir: str = "") -> Path:
     return Path(dir) if dir else Path.cwd()
 
 
+def get_input() -> str:
+    return input('> ')
+
+
 def get_sub_dir_path(dir: SubFS[FS]) -> str:
     try:
         return get_sub_dir_path(dir._wrap_fs) + dir._sub_dir
