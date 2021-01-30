@@ -12,7 +12,7 @@ import fs.tree
 from fs.base import FS
 from fs.tempfs import TempFS
 from fs.subfs import SubFS
-from fs.errors import DirectoryExpected, IllegalBackReference
+from fs.errors import DirectoryExpected
 from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
 from gdrive_utils import get_drive_instance, get_files_in_drive_dir, add_drive_files_to_sub_fs
@@ -185,8 +185,6 @@ def ls(dir: str, is_recursive: bool) -> None:
     target_dir = current_dir
     if dir:
         target_dir = _dive(current_dir, dir)
-            
-
     fs.tree.render(target_dir, max_levels=(None if is_recursive else 0))
     
 
@@ -206,8 +204,10 @@ def exit() -> None:
 @click.argument('dir', required=False)
 def select(dir: str) -> None:
     global current_dir
-    if dir:
-        current_dir = _dive(current_dir, dir)
-    _enumerate(current_dir)
+    target_dir = _dive(current_dir, dir)
+    if dir and current_dir == target_dir:
+        click.echo('Aborting selection...')
+        return
+    _enumerate(target_dir)
     raise ReplFinishSignal()
     
