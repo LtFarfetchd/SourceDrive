@@ -177,14 +177,21 @@ def repl():
     pass
 
 
+@repl.command()
+def pwd() -> None:
+    global current_dir
+    click.echo(get_sub_dir_path(current_dir))
+
+
 @repl.command(cls=ReplCommand)
 @click.argument('dir', required=False)
 @click.option('-r', '--recursive', 'is_recursive', is_flag=True)
 def ls(dir: str, is_recursive: bool) -> None:
     global current_dir
     target_dir = current_dir
-    if dir:
-        target_dir = _dive(current_dir, dir)
+    target_dir = _dive(current_dir, dir)
+    if dir and target_dir == current_dir:
+        return
     fs.tree.render(target_dir, max_levels=(None if is_recursive else 0))
     
 
