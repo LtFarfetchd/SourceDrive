@@ -1,3 +1,4 @@
+import constants
 import os
 from pathlib import Path
 import shlex
@@ -15,7 +16,6 @@ from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
 from gdrive_utils import get_drive_instance, get_files_in_drive_dir, add_drive_files_to_sub_fs
 from utils import get_sub_dir_path, no_stdout
-import constants
 
 
 class ReplExitSignal(Exception):
@@ -124,7 +124,9 @@ def run_repl(sdr_dir_path: Path) -> Dict[str, Dict[str, Any]]:
     data = { # TODO: cull data we don't need
         (key[len(chosen_dir):]) : value.metadata
         for (key, value) in drive_files.items() 
-        if chosen_dir in key and chosen_dir != key
+        if chosen_dir in key 
+           and chosen_dir != key
+           and value['mimeType'] != constants.FOLDER_MIMETYPE
     }
 
     gdrive_fs.close()
