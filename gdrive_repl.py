@@ -67,10 +67,16 @@ def _populate_dir_if_empty(parent_dir: SubFS[FS]) -> None:
 
 
 def _dive(start_dir: SubFS[FS], target_dir_path: str) -> SubFS[FS]:
-    global previous_dir
+    global previous_dir, gdrive_fs
 
     if target_dir_path == '-': # handle back-navigation case
         return previous_dir
+
+    if target_dir_path.startswith('/'): # handle absolute paths
+        start_dir = gdrive_fs
+    elif target_dir_path.startswith('~'):
+        start_dir = gdrive_fs.opendir('~')
+        target_dir_path = target_dir_path[1:]
 
     current_dir = start_dir
     if not target_dir_path.startswith('..') and current_dir.exists(target_dir_path):
