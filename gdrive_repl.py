@@ -12,6 +12,7 @@ import fs.tree
 from fs.base import FS
 from fs.tempfs import TempFS
 from fs.subfs import SubFS
+from fs.errors import IllegalBackReference
 from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
 from gdrive_utils import get_drive_instance, get_files_in_drive_dir, add_drive_files_to_sub_fs
@@ -42,6 +43,7 @@ class ReplGroup(click.Group):
 
 
 drive: GoogleDrive
+gdrive_fs: TempFS
 previous_dir: SubFS[FS]
 current_dir: SubFS[FS]
 drive_files: Dict[str, GoogleDriveFile] = {}
@@ -59,27 +61,41 @@ def _parentless(context: Context) -> Context:
     return ctx
 
 
+def _populate_dir_if_empty(parent_dir: SubFS[FS]) -> None:
+    if parent_dir.isempty('/'):
+        _generate_files(parent_dir)
+
+
 def _dive(start_dir: SubFS[FS], target_dir_path: str) -> SubFS[FS]:
-    # TODO: handle back-reference (..) instances within path
     global previous_dir
 
     if target_dir_path == '-': # handle back-navigation case
         return previous_dir
 
     current_dir = start_dir
-    if current_dir.exists(target_dir_path):
+    if not target_dir_path.startswith('..') and current_dir.exists(target_dir_path):
         current_dir = current_dir.opendir(target_dir_path)
-        if current_dir.isempty('/'):
-            _generate_files(current_dir)
+        _populate_dir_if_empty(current_dir)
         return current_dir
 
     dir_path = target_dir_path.split(os.sep)
     while dir_path:
-        if not current_dir.exists(dir_path[0]):
-            _generate_files(current_dir)
-        current_dir = current_dir.opendir(dir_path[0])
+        targeted_sub_dir = dir_path[0]
+        if targeted_sub_dir == '..':
+            try:
+                current_dir = current_dir._wrap_fs
+                del dir_path[0]
+                continue
+            except AttributeError:
+                click.echo('Error: Targeted directory is outside of the file system.')
+                break
+        _populate_dir_if_empty(current_dir)
+        if not current_dir.exists(targeted_sub_dir):
+            click.echo(f'Error: Directory `{targeted_sub_dir}` does not exist.')
+            break
+        current_dir = current_dir.opendir(targeted_sub_dir)
         del dir_path[0]
-    _generate_files(current_dir)
+    _populate_dir_if_empty(current_dir)
 
     return current_dir
 
@@ -92,7 +108,7 @@ def _enumerate(start_dir: SubFS[FS]) -> None:
 
 
 def run_repl(target_dir_path: Path) -> Dict[str, Dict[str, Any]]:
-    global drive, current_dir, previous_dir, drive_files
+    global drive, gdrive_fs, current_dir, previous_dir, drive_files
     with no_stdout():
         drive = get_drive_instance()
     temp_dir_path = (target_dir_path / constants.TEMP_DIR_RELPATH)
@@ -148,6 +164,7 @@ def ls(dir: str, is_recursive: bool) -> None:
     target_dir = current_dir
     if dir:
         target_dir = _dive(current_dir, dir)
+            
 
     fs.tree.render(target_dir, max_levels=(None if is_recursive else 0))
     
