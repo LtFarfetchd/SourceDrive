@@ -70,3 +70,5 @@ GAUTH_SETTINGS_RELPATH = SDR_RELPATH + '/gauth_settings.yaml'
 GAUTH_SETTINGS: str = yaml.dump({**GoogleAuth.DEFAULT_SETTINGS, **{'client_config_file': GAUTH_CREDENTIALS_RELPATH}})
 
 GDRIVE_QUERY = '\'{}\' in parents and trashed=false'
+DIRECTORY_EXPECTED_ERROR_MSG = 'Error: Directory `{}` does not exist.'
+INVALID_BACKREFERENCE_ERROR_MSG = 'Error: Targeted directory is outside of the file system.'

@@ -12,7 +12,7 @@ import fs.tree
 from fs.base import FS
 from fs.tempfs import TempFS
 from fs.subfs import SubFS
-from fs.errors import IllegalBackReference
+from fs.errors import DirectoryExpected, IllegalBackReference
 from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
 from gdrive_utils import get_drive_instance, get_files_in_drive_dir, add_drive_files_to_sub_fs
@@ -66,40 +66,55 @@ def _populate_dir_if_empty(parent_dir: SubFS[FS]) -> None:
         _generate_files(parent_dir)
 
 
+def _safe_open_direct_child(parent_dir: SubFS[FS], target_sub_dir: str) -> SubFS[FS]:
+    children = [dir.name for dir in parent_dir.filterdir('/', exclude_files=['*'])]
+    if target_sub_dir in children: # ensure case sensistivity
+        return parent_dir.opendir(target_sub_dir)
+    raise DirectoryExpected(path='', msg=constants.DIRECTORY_EXPECTED_ERROR_MSG.format(target_sub_dir))
+
+
 def _dive(start_dir: SubFS[FS], target_dir_path: str) -> SubFS[FS]:
     global previous_dir, gdrive_fs
+    current_dir = start_dir
 
     if target_dir_path == '-': # handle back-navigation case
         return previous_dir
-
-    if target_dir_path.startswith('/'): # handle absolute paths
-        start_dir = gdrive_fs
-    elif target_dir_path.startswith('~'):
-        start_dir = gdrive_fs.opendir('~')
+    
+    if target_dir_path[0] == '/': # handle absolute/home pathing
+        current_dir = gdrive_fs
         target_dir_path = target_dir_path[1:]
+    elif target_dir_path[0] == '~':
+        if len(target_dir_path) > 1:
+            if target_dir_path[1] == '/':
+                current_dir = gdrive_fs.opendir('~')
+                target_dir_path = target_dir_path[2:]
 
-    current_dir = start_dir
-    if not target_dir_path.startswith('..') and current_dir.exists(target_dir_path):
-        current_dir = current_dir.opendir(target_dir_path)
-        _populate_dir_if_empty(current_dir)
+    target_dir_path = target_dir_path.rstrip(os.sep) 
+    if len(target_dir_path) == 0: # early return for root/home path
         return current_dir
 
     dir_path = target_dir_path.split(os.sep)
+
+    if '' in dir_path: # terminate if double-separators are present
+        click.echo(constants.DIRECTORY_EXPECTED_ERROR_MSG.format(''))
+        return start_dir
+
     while dir_path:
-        targeted_sub_dir = dir_path[0]
-        if targeted_sub_dir == '..':
+        target_sub_dir = dir_path[0]
+        if target_sub_dir == '..':
             try:
                 current_dir = current_dir._wrap_fs
                 del dir_path[0]
                 continue
             except AttributeError:
-                click.echo('Error: Targeted directory is outside of the file system.')
-                break
+                click.echo(constants.INVALID_BACKREFERENCE_ERROR_MSG)
+                return start_dir
         _populate_dir_if_empty(current_dir)
-        if not current_dir.exists(targeted_sub_dir):
-            click.echo(f'Error: Directory `{targeted_sub_dir}` does not exist.')
-            break
-        current_dir = current_dir.opendir(targeted_sub_dir)
+        try:
+            current_dir = _safe_open_direct_child(current_dir, target_sub_dir)
+        except DirectoryExpected as de:
+            click.echo(de._msg)
+            return start_dir
         del dir_path[0]
     _populate_dir_if_empty(current_dir)
 
