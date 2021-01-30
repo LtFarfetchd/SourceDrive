@@ -1,3 +1,6 @@
+from pydrive.auth import GoogleAuth
+import yaml
+
 FOLDER_MIMETYPE = 'application/vnd.google-apps.folder'
 
 # https://developers.google.com/drive/api/v3/ref-export-formats
@@ -57,3 +60,7 @@ DRIVE_EXPORT_MIMETYPES = {
         'default_export': 'application/vnd.google-apps.script+json'
     },
 }
+
+GAUTH_CREDENTIALS_RELPATH = '.sdr/gauth_credentials.json'
+GAUTH_SETTINGS_RELPATH = '.sdr/gauth_settings.yaml'
+GAUTH_SETTINGS: str = yaml.dump({**GoogleAuth.DEFAULT_SETTINGS, **{'client_config_file': GAUTH_CREDENTIALS_RELPATH}})

@@ -15,6 +15,7 @@ from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
 from gdrive_utils import get_drive_instance, get_files_in_drive_dir, add_drive_files_to_sub_fs
 from utils import get_sub_dir_path, no_stdout
+import constants
 
 
 class ReplExitSignal(Exception):

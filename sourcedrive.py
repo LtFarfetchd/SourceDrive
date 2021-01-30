@@ -1,10 +1,11 @@
+from json.decoder import JSONDecodeError
 import click
 from pathlib import Path
 from gdrive_repl import run_repl
 from click.core import Context
 from utils import get_path, get_input
 import json
-from constants import DRIVE_EXPORT_MIMETYPES
+import constants
 from typing import Dict, Any
 
 
@@ -44,7 +45,7 @@ def configure(dir: str) -> None:
         # configure default export types
         click.echo('Configuring default export formats')
         new_exports = {}
-        for i, (key, value) in enumerate(DRIVE_EXPORT_MIMETYPES.items()):
+        for i, (key, value) in enumerate(constants.DRIVE_EXPORT_MIMETYPES.items()):
             possible_exports: Dict[str, str] = value['exports']
             if not possible_exports:
                 continue
@@ -72,13 +73,13 @@ def configure(dir: str) -> None:
         config_file.truncate()
         
 
-
 @sdr.command()
+@click.argument('creds', required=True)
 @click.argument('dir', required=False)
 @click.option('-p', '--pull', 'should_pull', is_flag=True)
 @click.option('-c', '--configure', 'should_configure', is_flag=True)
 @click.pass_context
-def init(context: Context, dir: str, should_pull: bool, should_configure: bool) -> None:
+def init(context: Context, creds: str, dir: str, should_pull: bool, should_configure: bool) -> None:
     """
     Mark a local directory as a SourceDrive repository. 
     If no directory is provided, the working directory is used. 
@@ -87,23 +88,53 @@ def init(context: Context, dir: str, should_pull: bool, should_configure: bool) 
     target_dir: Path = get_path(dir)
     sdr_dir_path = target_dir / '.sdr/'
 
+    gauth_credentials = ''
+    creds_are_valid = True
+    try:
+        with Path(creds).open('r') as user_gauth_credentials_file:
+            gauth_credentials = json.load(user_gauth_credentials_file)
+    except JSONDecodeError:
+        creds_are_valid = False
+    except FileNotFoundError:
+        try:
+            gauth_credentials = json.loads(creds)
+        except JSONDecodeError:
+            creds_are_valid = False
+    
+    if not creds_are_valid:
+        click.echo('Invalid Google Authentication credentials. \
+            The raw JSON or indicated JSON file could not be parsed.')
+    if 'web' not in gauth_credentials:
+        click.echo('Invalid Google Authentication credentials. \
+            The raw JSON or indicated JSON file does not contain valid Google OAuth credentials.')
+        return
+
     try:
         sdr_dir_path.mkdir()
     except FileExistsError:
         click.echo('The targeted directory is already a SourceDrive repository')
         return
+
+    # write out GAuth settings
+    with (target_dir / constants.GAUTH_SETTINGS_RELPATH).open(mode='w') as gauth_settings_file:
+        gauth_settings_file.write(constants.GAUTH_SETTINGS)
+
+    # write out GAuth credentials (secrets)
+    with (target_dir / constants.GAUTH_CREDENTIALS_RELPATH).open(mode='w') as gauth_credentials_file:
+        gauth_credentials_file.write(json.dumps(gauth_credentials))
     
+    # write out SDR config
     with (sdr_dir_path / 'config.json').open(mode='w') as config_file:
         config_file.write(
             json.dumps(
-                {'export_types': {key:value['default_export'] for (key, value) in DRIVE_EXPORT_MIMETYPES.items()}}
+                {'export_types': {key:value['default_export'] for (key, value) in constants.DRIVE_EXPORT_MIMETYPES.items()}}
                 ,indent=4
                 ,sort_keys=True
             )
         )
     
     if should_configure:
-        context.invoke(configure)
+        context.invoke(configure, dir=dir)
 
     gdrive_data = run_repl(sdr_dir_path)
     if gdrive_data:

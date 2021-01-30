@@ -1,16 +1,14 @@
-import os
 from utils import get_sub_dir_path, sanitise_fname
 from fs.subfs import SubFS
 from typing import List, Dict
-from pathlib import Path
 from fs.tempfs import TempFS
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
-from constants import FOLDER_MIMETYPE
+import constants
 
 def get_drive_instance() -> GoogleDrive:
-    gauth = GoogleAuth()
+    gauth = GoogleAuth(settings_file=constants.GAUTH_SETTINGS_RELPATH)
     gauth.LocalWebserverAuth()
     return GoogleDrive(gauth)
 
@@ -24,7 +22,7 @@ def _build_virtual_file(parent_dir: SubFS[TempFS], drive_file: GoogleDriveFile) 
     df_meta = drive_file.metadata
     file_name: str = df_meta['title']
     file_name = sanitise_fname(file_name)
-    if df_meta['mimeType'] == FOLDER_MIMETYPE:
+    if df_meta['mimeType'] == constants.FOLDER_MIMETYPE:
         parent_dir.makedir(file_name)
     else:
         parent_dir.touch(file_name)
