@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import shlex
-from typing import Dict
+from typing import Dict, Any
 import click
 from click.core import Context
 from click.formatting import HelpFormatter
@@ -91,7 +91,7 @@ def _enumerate(start_dir: SubFS[FS]) -> None:
         _enumerate(start_dir.opendir(sub_dir_info.name))
 
 
-def run_repl(sdr_dir_path: Path) -> Dict[str, str]:
+def run_repl(sdr_dir_path: Path) -> Dict[str, Dict[str, Any]]:
     global drive, current_dir, previous_dir, drive_files
     with no_stdout():
         drive = get_drive_instance()
