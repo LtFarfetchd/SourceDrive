@@ -9,7 +9,6 @@ from utils import get_path, get_input, no_stdout
 import json
 import constants
 from typing import Dict, Any
-from pydrive.drive import GoogleDriveFile
 
 
 @click.group()
@@ -62,7 +61,7 @@ def configure(dir: str) -> None:
     Interactively override default SourceDrive configurations.
     """
     # TODO: attempt to repair broken configs if file exists but can't be parsed
-    config_dir = get_path(dir) / '.sdr' / 'config.json'
+    config_dir = get_path(dir) / constants.SDR_CONFIG_RELPATH
     if not (config_dir).exists():
         click.echo('Cannot modify configurations of an uninitialised SourceDrive repository')
         click.echo('Run `sdr init --help` for help with initialisation')
@@ -114,7 +113,6 @@ def init(context: Context, creds: str, dir: str, should_pull: bool, should_confi
     Opens a REPL for navigation through your Google Drive file-system to select a folder for SourceDrive to sync from
     """
     target_dir_path: Path = get_path(dir)
-    sdr_dir_path = target_dir_path / '.sdr/'
 
     # fetch google OAuth credentials
     gauth_credentials = ''
@@ -139,7 +137,7 @@ def init(context: Context, creds: str, dir: str, should_pull: bool, should_confi
         return
 
     try:
-        sdr_dir_path.mkdir()
+        (target_dir_path / constants.SDR_RELPATH).mkdir()
     except FileExistsError:
         click.echo('The targeted directory is already a SourceDrive repository')
         return
@@ -153,7 +151,7 @@ def init(context: Context, creds: str, dir: str, should_pull: bool, should_confi
         gauth_credentials_file.write(json.dumps(gauth_credentials))
     
     # write out SDR config
-    with (sdr_dir_path / 'config.json').open(mode='w') as config_file:
+    with (target_dir_path / constants.SDR_CONFIG_RELPATH).open(mode='w') as config_file:
         config_file.write(
             json.dumps(
                 {'export_types': {key:value['default_export'] for (key, value) in constants.DRIVE_EXPORT_MIMETYPES.items()}}
@@ -165,9 +163,9 @@ def init(context: Context, creds: str, dir: str, should_pull: bool, should_confi
     if should_configure:
         context.invoke(configure, dir=dir)
 
-    gdrive_data = run_repl(sdr_dir_path)
+    gdrive_data = run_repl(target_dir_path)
     if gdrive_data:
-        with (sdr_dir_path / 'gdrive.json').open(mode='w') as gdrive_fs_file:
+        with (target_dir_path / constants.DRIVE_FILES_RELPATH).open(mode='w') as gdrive_fs_file:
             gdrive_fs_file.write(json.dumps(gdrive_data))
         if should_pull:
             context.invoke(pull, dir=dir, should_search=False, is_forced=False, is_interactive=False)

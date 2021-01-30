@@ -61,8 +61,12 @@ DRIVE_EXPORT_MIMETYPES = {
     },
 }
 
-DRIVE_FILES_RELPATH = '.sdr/gdrive.json'
-SDR_CONFIG_RELPATH = '.sdr/config.json'
-GAUTH_CREDENTIALS_RELPATH = '.sdr/gauth_credentials.json'
-GAUTH_SETTINGS_RELPATH = '.sdr/gauth_settings.yaml'
+SDR_RELPATH = '.sdr'
+TEMP_DIR_RELPATH = SDR_RELPATH + '/temp'
+DRIVE_FILES_RELPATH = SDR_RELPATH + '/gdrive.json'
+SDR_CONFIG_RELPATH = SDR_RELPATH + '/config.json'
+GAUTH_CREDENTIALS_RELPATH = SDR_RELPATH + '/gauth_credentials.json'
+GAUTH_SETTINGS_RELPATH = SDR_RELPATH + '/gauth_settings.yaml'
 GAUTH_SETTINGS: str = yaml.dump({**GoogleAuth.DEFAULT_SETTINGS, **{'client_config_file': GAUTH_CREDENTIALS_RELPATH}})
+
+GDRIVE_QUERY = '\'{}\' in parents and trashed=false'

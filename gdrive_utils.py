@@ -16,7 +16,7 @@ def get_drive_instance() -> GoogleDrive:
 
 
 def get_files_in_drive_dir(drive: GoogleDrive, dir_drive_id: str) -> List[GoogleDriveFile]:
-    query = f"'{dir_drive_id}' in parents and trashed=false"
+    query = constants.GDRIVE_QUERY.format(dir_drive_id)
     return drive.ListFile({'q': query}).GetList()
 
 
