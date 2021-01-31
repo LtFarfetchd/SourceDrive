@@ -72,3 +72,5 @@ GAUTH_SETTINGS: str = yaml.dump({**GoogleAuth.DEFAULT_SETTINGS, **{'client_confi
 GDRIVE_QUERY = '\'{}\' in parents and trashed=false'
 DIRECTORY_EXPECTED_ERROR_MSG = 'Error: Directory `{}` does not exist.'
 INVALID_BACKREFERENCE_ERROR_MSG = 'Error: Targeted directory is outside of the file system.'
+
+CHOSEN_GDRIVE_DIR_PATH_KEY = 'chosen_gdrive_dir'

@@ -35,7 +35,7 @@ def pull(dir: str, should_search: bool, is_forced: bool, is_interactive: bool, f
 
     sdr_config: Dict[str, Any] = {}
     export_defaults: Dict[str, str] = {}
-    target_gdrive_dir_id: str
+    chosen_gdrive_dir_path: str
     with (target_dir_path / constants.SDR_CONFIG_RELPATH).open('r') as sdr_config_file:
         try:
             sdr_config = json.load(sdr_config_file)
@@ -44,7 +44,7 @@ def pull(dir: str, should_search: bool, is_forced: bool, is_interactive: bool, f
                 Run `sdr configure` to attempt to fix configurations.')
             return
         try:
-            target_gdrive_dir_id = sdr_config['target_folder_id']
+            chosen_gdrive_dir_path = sdr_config[constants.CHOSEN_GDRIVE_DIR_PATH_KEY]
         except KeyError:
             click.echo('Error: Could not read targeted Google Drive directory from `config.json`. \
                 Run `sdr init` to initialise a repository.')
@@ -185,8 +185,16 @@ def init(context: Context, creds: str, dir: str, should_pull: bool, should_confi
     if should_configure:
         context.invoke(configure, dir=dir)
 
-    gdrive_data = run_repl(target_dir_path)
+    chosen_gdrive_dir_path, gdrive_data = run_repl(target_dir_path)
     if gdrive_data:
+        # write out path
+        with (target_dir_path / constants.SDR_CONFIG_RELPATH).open(mode='r+') as sdr_config_file:
+            sdr_config: Dict[str, Any] = json.load(sdr_config_file)
+            sdr_config.update({constants.CHOSEN_GDRIVE_DIR_PATH_KEY: chosen_gdrive_dir_path})
+            sdr_config_file.seek(0)
+            sdr_config_file.write(json.dumps(sdr_config, indent=4, sort_keys=True))
+
+        # write out data
         with (target_dir_path / constants.DRIVE_FILES_RELPATH).open(mode='w') as gdrive_fs_file:
             gdrive_fs_file.write(json.dumps(gdrive_data))
         if should_pull:

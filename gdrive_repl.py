@@ -2,7 +2,7 @@ import constants
 import os
 from pathlib import Path
 import shlex
-from typing import Dict, Any, overload
+from typing import Dict, Any, Tuple
 import click
 from click.core import Context
 from click.formatting import HelpFormatter
@@ -134,7 +134,7 @@ def _enumerate(start_dir: SubFS[FS], previous_dir: SubFS[FS], root_dir: FS, targ
     return True
 
 
-def run_repl(target_dir_path: Path) -> Dict[str, Dict[str, Any]]:
+def run_repl(target_dir_path: Path) -> Tuple[str, Dict[str, Dict[str, Any]]]:
     global drive, root_dir, current_dir, previous_dir, drive_files
     with no_stdout():
         drive = get_drive_instance()
@@ -175,7 +175,7 @@ def run_repl(target_dir_path: Path) -> Dict[str, Dict[str, Any]]:
     root_dir.close()
     temp_dir_path.rmdir()
 
-    return data
+    return (chosen_dir, data)
 
 
 @click.group(cls=ReplGroup)
