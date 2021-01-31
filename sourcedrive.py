@@ -3,7 +3,7 @@
 import os
 
 from fs.tempfs import TempFS
-from gdrive_utils import get_drive_instance, enumerate_from_id
+from gdrive_utils import get_drive_instance, dir_enumerate
 from json.decoder import JSONDecodeError
 import click
 from pathlib import Path
