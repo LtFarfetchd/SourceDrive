@@ -2,6 +2,7 @@ from utils import get_sub_dir_path, sanitise_fname
 from fs.subfs import SubFS
 from typing import List, Dict
 from fs.tempfs import TempFS
+from fs.base import FS
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 from pydrive.files import GoogleDriveFile
@@ -53,3 +54,6 @@ def add_drive_files_to_sub_fs(parent_dir: SubFS[TempFS], files: List[GoogleDrive
         ))
     return google_ids
 
+
+def enumerate_from_id(root_dir: FS, drive_folder_id: str, drive: GoogleDrive) -> None:
+    pass

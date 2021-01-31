@@ -1,5 +1,9 @@
+# TODO: use constants for error messages and dictionary keys
+
 import os
-from gdrive_utils import get_drive_instance
+
+from fs.tempfs import TempFS
+from gdrive_utils import get_drive_instance, enumerate_from_id
 from json.decoder import JSONDecodeError
 import click
 from pathlib import Path
@@ -21,30 +25,48 @@ def sdr() -> None:
 @click.option('-s, --search', 'should_search', is_flag=True)
 @click.option('-f, --force', 'is_forced', is_flag=True)
 @click.option('-i, --interactive', 'is_interactive', is_flag=True)
-def pull(dir: str, should_search: bool, is_forced: bool, is_interactive: bool) -> None:
+@click.option('--fetch/--no-fetch', default=True)
+def pull(dir: str, should_search: bool, is_forced: bool, is_interactive: bool, fetch: bool) -> None:
     """
     Safe-sync the specified directory if it is marked as a SourceDrive repository.
     If no directory is provided, the current directory is used.
     """
     target_dir_path: Path = get_path(dir)
 
-    # get default exports
+    sdr_config: Dict[str, Any] = {}
     export_defaults: Dict[str, str] = {}
+    target_gdrive_dir_id: str
     with (target_dir_path / constants.SDR_CONFIG_RELPATH).open('r') as sdr_config_file:
         try:
-            export_defaults = json.load(sdr_config_file)['export_types']
+            sdr_config = json.load(sdr_config_file)
         except JSONDecodeError:
-            click.echo('Could not parse default export types from config.json. \
+            click.echo('Could not parse SourceDrive configurations from `config.json`. \
                 Run `sdr configure` to attempt to fix configurations.')
+            return
+        try:
+            target_gdrive_dir_id = sdr_config['target_folder_id']
+        except KeyError:
+            click.echo('Error: Could not read targeted Google Drive directory from `config.json`. \
+                Run `sdr init` to initialise a repository.')
+            return
+        try:
+            export_defaults = ['export_types']
+        except KeyError:
+            click.echo('Error: Could not read default export types from `config.json`. \
+                Run `sdr configure` to attempt to fix configurations.')
+            return
+
+    with no_stdout():
+        drive = get_drive_instance()
     
+    if fetch:
+        tree = TempFS()           # re-enumerate files in targeted directory
+            
     # read out the drive files' configs
     drive_files: Dict[str, Any] = {}
     with (target_dir_path / constants.DRIVE_FILES_RELPATH).open('r') as drive_files_file:
         drive_files = json.load(drive_files_file)
 
-    with no_stdout():
-            drive = get_drive_instance()
-            
     for path, drive_file_metadata in drive_files.items():
         if drive_file_metadata['mimeType'] == constants.FOLDER_MIMETYPE:
             continue
