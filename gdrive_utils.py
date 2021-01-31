@@ -10,6 +10,7 @@ import constants
 import json
 from pathlib import Path
 
+
 def get_drive_instance() -> GoogleDrive:
     gauth = GoogleAuth(settings_file=constants.GAUTH_SETTINGS_RELPATH)
     gauth.LocalWebserverAuth()

@@ -49,8 +49,12 @@ current_dir: SubFS[FS]
 drive_files: Dict[str, GoogleDriveFile] = {}
 
 
-def _generate_files(parent_dir: SubFS[FS]) -> None:
-    global drive, drive_files
+def _generate_files(
+        parent_dir: SubFS[FS], 
+        drive: GoogleDrive, 
+        drive_files: Dict[str, GoogleDriveFile]
+    ) -> None:
+
     files = get_files_in_drive_dir(drive, drive_files[get_sub_dir_path(parent_dir)]['id'])
     drive_files.update(add_drive_files_to_sub_fs(parent_dir, files))
 
@@ -61,9 +65,14 @@ def _parentless(context: Context) -> Context:
     return ctx
 
 
-def _populate_dir_if_empty(parent_dir: SubFS[FS]) -> None:
+def _populate_dir_if_empty(
+        parent_dir: SubFS[FS], 
+        drive: GoogleDrive, 
+        drive_files: Dict[str, GoogleDriveFile]
+    ) -> None:
+
     if parent_dir.isempty('/'):
-        _generate_files(parent_dir)
+        _generate_files(parent_dir, drive, drive_files)
 
 
 def _safe_open_direct_child(parent_dir: SubFS[FS], target_sub_dir: str) -> SubFS[FS]:
@@ -73,7 +82,15 @@ def _safe_open_direct_child(parent_dir: SubFS[FS], target_sub_dir: str) -> SubFS
     raise DirectoryExpected(path='', msg=constants.DIRECTORY_EXPECTED_ERROR_MSG.format(target_sub_dir))
 
 
-def _dive(start_dir: SubFS[FS], previous_dir: SubFS[FS], root_dir: FS, target_dir_path: str) -> SubFS[FS]:
+def _dive(
+        start_dir: SubFS[FS], 
+        previous_dir: SubFS[FS], 
+        root_dir: FS, 
+        drive: GoogleDrive, 
+        drive_files: Dict[str, GoogleDriveFile], 
+        target_dir_path: str
+    ) -> SubFS[FS]:
+
     if not target_dir_path:
         return start_dir
 
@@ -102,6 +119,7 @@ def _dive(start_dir: SubFS[FS], previous_dir: SubFS[FS], root_dir: FS, target_di
         return start_dir
 
     while dir_path:
+        _populate_dir_if_empty(current_dir, drive, drive_files)
         target_sub_dir = dir_path[0]
         if target_sub_dir == '..':
             try:
@@ -111,26 +129,39 @@ def _dive(start_dir: SubFS[FS], previous_dir: SubFS[FS], root_dir: FS, target_di
             except AttributeError:
                 click.echo(constants.INVALID_BACKREFERENCE_ERROR_MSG)
                 return start_dir
-        _populate_dir_if_empty(current_dir)
         try:
             current_dir = _safe_open_direct_child(current_dir, target_sub_dir)
         except DirectoryExpected as de:
             click.echo(de._msg)
             return start_dir
         del dir_path[0]
-    _populate_dir_if_empty(current_dir)
+    _populate_dir_if_empty(current_dir, drive, drive_files)
 
     return current_dir
 
 
-def _enumerate(start_dir: SubFS[FS], previous_dir: SubFS[FS], root_dir: FS, target_dir_path: str = '') -> bool:
+def _enumerate(
+        start_dir: SubFS[FS],
+        previous_dir: SubFS[FS],
+        root_dir: FS,
+        drive: GoogleDrive,
+        drive_files: Dict[str, GoogleDriveFile], 
+        target_dir_path: str = ''
+    ) -> bool:
+
     target_dir = start_dir
     if target_dir_path:
-        target_dir = _dive(start_dir, previous_dir, root_dir, target_dir_path)
+        target_dir = _dive(start_dir, previous_dir, root_dir, drive, drive_files, target_dir_path)
         if target_dir == start_dir:
             return False
     for sub_dir_info in target_dir.filterdir('/', exclude_files=['*']):
-        _enumerate(_dive(target_dir, previous_dir, root_dir, sub_dir_info.name), previous_dir, root_dir)
+        _enumerate(
+            _dive(target_dir, previous_dir, root_dir, drive, drive_files, sub_dir_info.name), 
+            previous_dir, 
+            root_dir, 
+            drive, 
+            drive_files
+        )
     return True
 
 
@@ -143,7 +174,7 @@ def run_repl(target_dir_path: Path) -> Tuple[str, Dict[str, Dict[str, Any]]]:
     root_dir = TempFS(temp_dir=str(temp_dir_path.resolve()))
     current_dir = root_dir.makedir('~')
     drive_files[current_dir._sub_dir] = GoogleDriveFile(metadata={'id': 'root'})
-    _generate_files(current_dir)
+    _generate_files(current_dir, drive, drive_files)
     previous_dir = current_dir
 
     while True:
@@ -193,9 +224,9 @@ def pwd() -> None:
 @click.argument('dir', required=False)
 @click.option('-r', '--recursive', 'is_recursive', is_flag=True)
 def ls(dir: str, is_recursive: bool) -> None:
-    global current_dir, previous_dir, root_dir
+    global current_dir, previous_dir, root_dir, drive_files, drive
     target_dir = current_dir
-    target_dir = _dive(current_dir, previous_dir, root_dir, dir)
+    target_dir = _dive(current_dir, previous_dir, root_dir, drive, drive_files, dir)
     if dir and target_dir == current_dir:
         return
     fs.tree.render(target_dir, max_levels=(None if is_recursive else 0))
@@ -204,8 +235,8 @@ def ls(dir: str, is_recursive: bool) -> None:
 @repl.command(cls=ReplCommand)
 @click.argument('dir', required=True)
 def cd(dir: str) -> None:
-    global current_dir, previous_dir, root_dir
-    current_dir = _dive(current_dir, previous_dir, root_dir, dir)
+    global current_dir, previous_dir, root_dir, drive_files, drive
+    current_dir = _dive(current_dir, previous_dir, root_dir, drive, drive_files, dir)
 
 
 @repl.command(cls=ReplCommand)
@@ -216,10 +247,10 @@ def exit() -> None:
 @repl.command(cls=ReplCommand)
 @click.argument('dir', required=False)
 def select(dir: str) -> None:
-    global current_dir, previous_dir, root_dir
-    if not _enumerate(current_dir, previous_dir, root_dir, dir):
+    global current_dir, previous_dir, root_dir, drive_files, drive
+    if not _enumerate(current_dir, previous_dir, root_dir, drive, drive_files, dir):
         click.echo('Aborting selection...')
         return
-    current_dir = _dive(current_dir, previous_dir, root_dir, dir)
+    current_dir = _dive(current_dir, previous_dir, root_dir, drive, drive_files, dir)
     raise ReplFinishSignal()
     
