@@ -1,3 +1,4 @@
+from drive_data_manager import DriveDataManager
 from utils import get_sub_dir_path, sanitise_fname
 from fs.subfs import SubFS
 from typing import List, Dict
@@ -75,14 +76,9 @@ def add_drive_files_to_sub_fs(parent_dir: SubFS[TempFS], files: List[GoogleDrive
     return google_ids
 
 
-def generate_files(
-        parent_dir: SubFS[FS], 
-        drive: GoogleDrive, 
-        drive_files: Dict[str, GoogleDriveFile]
-    ) -> None:
-
-    files = get_files_in_drive_dir(drive, drive_files[get_sub_dir_path(parent_dir)]['id'])
-    drive_files.update(add_drive_files_to_sub_fs(parent_dir, files))
+def generate_files(parent_dir: SubFS[FS], ddm: DriveDataManager) -> None:
+    files = get_files_in_drive_dir(ddm.drive, ddm.drive_files[get_sub_dir_path(parent_dir)]['id'])
+    ddm.drive_files.update(add_drive_files_to_sub_fs(parent_dir, files))
 
 
 def dir_dive(

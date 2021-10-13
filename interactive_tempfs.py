@@ -10,12 +10,12 @@ from gdrive_utils import generate_files
 class InteractiveTempFS:
     def __init__(self, ddm: DriveDataManager, target_local_dir_path: Path = None):
         if not target_local_dir_path is None:
-            temp_dir_path = (target_local_dir_path / constants.TEMP_DIR_RELPATH).resolve()
-            if not temp_dir_path.exists():
-                temp_dir_path.mkdir()
+            self._temp_dir_path = (target_local_dir_path / constants.TEMP_DIR_RELPATH).resolve()
+            if not self._temp_dir_path.exists():
+                self._temp_dir_path.mkdir()
         else:
-            temp_dir_path = None
-        self._root_dir = TempFS(temp_dir=str(temp_dir_path.resolve()))
+            self._temp_dir_path = None
+        self._root_dir = TempFS(temp_dir=str(self._temp_dir_path.resolve()))
         self._current_dir = self._root_dir.makedir('~')
         ddm.drive_files[self._current_dir._sub_dir] = GoogleDriveFile(metadata={'id': 'root'})
         generate_files(self._current_dir, ddm)
@@ -32,3 +32,10 @@ class InteractiveTempFS:
     @property
     def previous_dir(self) -> TempFS | SubFS[FS]:
         return self._previous_dir
+
+    def close(self):
+        if self._temp_dir_path is not None:
+            self._temp_dir_path.rmdir()
+        self._root_dir.close()
+
+    def enumerate_dir(self, )
