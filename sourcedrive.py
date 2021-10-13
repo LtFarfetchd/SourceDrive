@@ -3,7 +3,11 @@
 import os
 
 from fs.tempfs import TempFS
-from gdrive_utils import get_drive_instance, dir_enumerate
+from gdrive_utils import (
+    dir_enumerate, 
+    generate_init_data, 
+    generate_init_resources
+)
 from json.decoder import JSONDecodeError
 import click
 from pathlib import Path
@@ -13,6 +17,7 @@ from utils import get_path, get_input, no_stdout
 import json
 import constants
 from typing import Dict, Any
+from drive_context import ctx_drive, ctx_drive_files, ctx_local_dir_path
 
 
 @click.group()
@@ -31,7 +36,8 @@ def pull(dir: str, should_search: bool, is_forced: bool, is_interactive: bool, f
     Safe-sync the specified directory if it is marked as a SourceDrive repository.
     If no directory is provided, the current directory is used.
     """
-    target_dir_path: Path = get_path(dir)
+    target_dir_path = ctx_local_dir_path() = get_path(dir)
+    drive = ctx_drive()
 
     sdr_config: Dict[str, Any] = {}
     export_defaults: Dict[str, str] = {}
@@ -55,19 +61,21 @@ def pull(dir: str, should_search: bool, is_forced: bool, is_interactive: bool, f
             click.echo('Error: Could not read default export types from `config.json`. \
                 Run `sdr configure` to attempt to fix configurations.')
             return
-
-    with no_stdout():
-        drive = get_drive_instance()
     
+    remote_data: Dict[str, Dict[str, Any]]
     if fetch:
-        tree = TempFS()           # re-enumerate files in targeted directory
+        root_dir, current_dir, previous_dir = generate_init_resources()
+        dir_enumerate(current_dir, previous_dir, root_dir, chosen_gdrive_dir_path)
+        remote_data = generate_init_data(chosen_gdrive_dir_path)
+    else:
+        pass # just use the specific ids to identify pull down new versions of files where necessary
             
     # read out the drive files' configs
-    drive_files: Dict[str, Any] = {}
+    local_drive_files: Dict[str, Any] = {}
     with (target_dir_path / constants.DRIVE_FILES_RELPATH).open('r') as drive_files_file:
-        drive_files = json.load(drive_files_file)
+        local_drive_files = json.load(drive_files_file)
 
-    for path, drive_file_metadata in drive_files.items():
+    for path, drive_file_metadata in local_drive_files.items():
         if drive_file_metadata['mimeType'] == constants.FOLDER_MIMETYPE:
             continue
         current_file = drive.CreateFile(metadata=drive_file_metadata)
@@ -124,17 +132,27 @@ def configure(dir: str) -> None:
 
 @sdr.command()
 @click.argument('creds', required=True)
-@click.argument('dir', required=False)
+@click.option('-lD', '--local-dir', type=str)
+@click.option('-dD', '--drive-dir', type=str)
 @click.option('-p', '--pull', 'should_pull', is_flag=True)
 @click.option('-c', '--configure', 'should_configure', is_flag=True)
 @click.pass_context
-def init(context: Context, creds: str, dir: str, should_pull: bool, should_configure: bool) -> None:
+def init(
+        context: Context, 
+        creds: str, 
+        local_dir: str, 
+        drive_dir: str, 
+        should_pull: bool, 
+        should_configure: bool
+    ) -> None:
+
     """
     Mark a local directory as a SourceDrive repository. 
     If no directory is provided, the working directory is used. 
     Opens a REPL for navigation through your Google Drive file-system to select a folder for SourceDrive to sync from
     """
-    target_dir_path: Path = get_path(dir)
+    target_dir_path: Path = get_path(local_dir)
+
 
     # fetch google OAuth credentials
     gauth_credentials = ''
@@ -183,9 +201,17 @@ def init(context: Context, creds: str, dir: str, should_pull: bool, should_confi
         )
     
     if should_configure:
-        context.invoke(configure, dir=dir)
+        context.invoke(configure, dir=local_dir)
 
-    chosen_gdrive_dir_path, gdrive_data = run_repl(target_dir_path)
+    # auto-generate file data using CLI input or interactively selected drive directory
+    if drive_dir:
+        chosen_gdrive_dir_path = drive_dir
+        root_dir, current_dir, previous_dir, drive, drive_files = generate_init_resources(target_dir_path)
+        dir_enumerate(current_dir, previous_dir, root_dir, drive, drive_files, chosen_gdrive_dir_path)
+        gdrive_data = generate_init_data(chosen_gdrive_dir_path)
+    else:
+        chosen_gdrive_dir_path, gdrive_data = run_repl(target_dir_path)
+
     if gdrive_data:
         # write out path
         with (target_dir_path / constants.SDR_CONFIG_RELPATH).open(mode='r+') as sdr_config_file:
@@ -198,4 +224,4 @@ def init(context: Context, creds: str, dir: str, should_pull: bool, should_confi
         with (target_dir_path / constants.DRIVE_FILES_RELPATH).open(mode='w') as gdrive_fs_file:
             gdrive_fs_file.write(json.dumps(gdrive_data))
         if should_pull:
-            context.invoke(pull, dir=dir, should_search=False, is_forced=False, is_interactive=False)
+            context.invoke(pull, dir=local_dir, should_search=False, is_forced=False, is_interactive=False)
